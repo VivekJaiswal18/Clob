@@ -4,3 +4,15 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+actix-web = "4.12.1"
+actix-web-actors = "4.3.1"
+parking_lot = "0.12.5"
+reqwest = {version = "0.13.1", features = ["json"]}
+ringbuf = "0.4.8"
+serde = {version = "1.0.228",  features = ["derive"]}
+serde_json = "1.0.148"
+thiserror = "2.0.17"
+tokio = {version = "1.48.0", features = ["full"]} 
+tracing = "0.1.44"
+wincode = "0.2.5"
+wincode-derive = "0.2.3"

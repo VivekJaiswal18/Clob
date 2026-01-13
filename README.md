@@ -1,13 +1,11 @@
 # Central Limit Orderbook
 
-This is a CLOB engine.
+This is a Central Limit Orderbook engine made for high throughput performance.
 
 ---
 
 ## Tech Stack
 
-**Language:** Rust
-
-**Server Framework:** Actix-Web
-
-**Database:**
+-**Language:** Rust
+-**Server Framework:** Actix-Web
+-**Database:** Scylla DB

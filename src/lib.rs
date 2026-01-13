@@ -1,14 +1,14 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+use std::sync::atomic::AtomicU64;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod engine_registry;
+pub mod matching_engine;
+pub mod persist;
+pub mod websocket;
+pub mod error;
+pub mod event;
+pub mod input;
+pub mod output;
+pub mod orderbook;
+pub mod route;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub static ORDER_ID: AtomicU64 = AtomicU64::new(1);
