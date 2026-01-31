@@ -1,30 +1,21 @@
 use std::hint::spin_loop;
-use std::mem;
-use actix_web::{get, App, HttpServer, web::{Data}}; 
-use tokio::sync::mpsc;
+use std::{mem};
+
+use actix_web::{App, HttpRequest, HttpResponse, Error, HttpServer, get, web::{self, Data}}; 
+use actix_web_actors::ws;
+use actix::{Addr, Actor};
+use tokio::{sync::mpsc, time::Instant};
 use ringbuf::{HeapRb, traits::{Split, Producer}};
 use tokio::task::yield_now;
+use uuid::Uuid;
 use std::sync::Arc;
 use parking_lot::RwLock;
-use orderbook::ORDER_ID;
 
-use orderbook::route::{create_order, delete_order};
+use orderbook::{route::{create_order, delete_order, get_depth}, websocket::{MarketDataServer, client::WsSession}};
 use orderbook::event::{OrderEvent};
 use orderbook::matching_engine::matching_loop;
 use orderbook::output::{Depth};
 
-// mod input;
-// mod output;
-// mod route;
-// mod event;
-// mod matching_engine;
-// mod orderbook;
-// mod error;
-// mod websocket;
-// mod persist;
-// mod engine_registry;
-
-// pub static ORDER_ID: AtomicU64 = AtomicU64::new(1);
 
 #[actix_web::main]
 async fn main () -> std::io::Result<()>{
@@ -54,7 +45,6 @@ async fn main () -> std::io::Result<()>{
         // order_prod.push(batch); check for reason
         let mut spin :u8 = 0;
         let batch_push = mem::take(&mut batch);
-        // let s: OrderEvent;
         for s in mem::take(&mut batch){
             let mut value = order_prod.try_push(s);
         while value.is_err(){
@@ -72,20 +62,41 @@ async fn main () -> std::io::Result<()>{
     }
 });
 
-tokio::spawn(async move {
+{
+    let depth_snapshot = depth_snapshot.clone();
+    // let broadcast = broadcast.clone();
+    tokio::spawn(async move {
     matching_loop(
         order_cons,
         depth_snapshot,
         // "SOL-USDC".to_string(),
     ).await;
-});
+    });
+}
+
+let market_server = MarketDataServer::new().start();
+let market_data_server = web::Data::new(market_server);
+
+async fn ws(req: HttpRequest, stream: web::Payload, server: web::Data<Addr<MarketDataServer>>)->Result<HttpResponse, Error>{
+    ws::start(
+        WsSession{
+            id: Uuid::nil(),
+            hb: Instant::now(),
+            server: server.get_ref().clone(),
+        },
+        &req,
+        stream)
+}
 
     HttpServer::new(move || {
         App::new()
         .app_data(Data::new(sender.clone()))
+        .app_data(market_data_server.clone())
+        .app_data(Data::new(depth_snapshot.clone()))
         .service(create_order)
         .service(delete_order)
-        // .service(get_depth)
+        .service(get_depth)
+        .route("/ws", web::get().to(ws))
     })
     .bind("127.0.0.1:8080")?
     .workers(12)

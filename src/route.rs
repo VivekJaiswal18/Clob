@@ -1,12 +1,15 @@
 use actix_web::{HttpRequest, Responder, HttpResponse, get, post, web, delete};
-use actix_web::web::{Data};
+use actix_web::web::{Bytes, Data};
+use parking_lot::RwLock;
+use reqwest::get;
 use tokio::{sync::mpsc};
 use serde_json;
 use std::sync::{Arc, atomic::Ordering};
 use crate::ORDER_ID;
 use crate::input::{CreateOrderInput, DeleteOrderInput};
 use crate::event::{OrderEvent};
-use crate::output::{CreateOrderResponse, DeleteOrderResponse};
+use crate::output::{CreateOrderResponse, DeleteOrderResponse, Depth};
+use crate::websocket::MarketDataServer;
 // use crate::ORDER_ID;
 
 
@@ -140,7 +143,24 @@ pub async fn delete_order(req: HttpRequest, sender: Data<OrderSender>, body: web
    }
 }
 
-// #[get("/depth")]
-// // pub async fn get_depth()-> impl Responder{
+#[get("/depth")]
+pub async fn get_depth(req: HttpRequest, depth: Data<Arc<RwLock<Depth>>>)-> impl Responder{
 
-// }
+    let depth_read = depth.read();
+    let depth_snapshot = Depth{
+        asks: depth_read.asks.clone(),
+        bids: depth_read.bids.clone(),
+        last_update_id: depth_read.last_update_id.clone()
+    };
+    drop(depth_read);
+
+    if wants_wincode(&req){
+        match wincode::serialize(&depth_snapshot){
+         Ok(bytes)=>HttpResponse::Ok().content_type("application/octect-stream").body(bytes),
+         Err(e)=> HttpResponse::Ok().json(&depth_snapshot)
+        }
+    }
+    else{
+        HttpResponse::Ok().json(&depth_snapshot)
+    }
+}

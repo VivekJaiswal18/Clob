@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use wincode_derive::{SchemaWrite, SchemaRead};
 
-#[derive(Debug, Deserialize, Serialize, SchemaWrite, SchemaRead)]
+#[derive(Debug, Deserialize, Serialize, SchemaWrite, SchemaRead, Clone)]
 pub enum Side{
     Buy,
     Sell, 

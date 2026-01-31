@@ -12,7 +12,7 @@ pub struct DeleteOrderResponse{
     pub success: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, SchemaWrite)]
 pub struct Depth{
     pub asks: Vec<[u64; 2]>,
     pub bids: Vec<[u64; 2]>,
