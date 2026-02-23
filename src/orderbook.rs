@@ -1,6 +1,8 @@
 use actix_web::Error;
 use actix_web::cookie::time::convert::Millisecond;
 use actix_web::cookie::time::{Time, UtcDateTime};
+use chrono::Utc;
+use serde::de::Expected;
 use tracing::warn;
 use crate::error::{OrderbookError, Result};
 use crate::input::Side;
@@ -83,7 +85,8 @@ pub struct ExecutedOrder{
     pub taker_id: u64,
     pub price: u64,
     pub quantity: u64,
-    pub timestamp: UtcDateTime
+    pub timestamp: i64
+    // pub timestamp: UtcDateTime
 }
 
 pub struct DepthCache{
@@ -98,7 +101,8 @@ pub struct TradeMsg{
     price: u64,
     maker_id: u64,
     taker_id: u64,
-    timestamp: UtcDateTime,
+    timestamp: i64,
+    // timestamp: UtcDateTime,
     quantity: u64,
 }
 
@@ -136,7 +140,7 @@ impl OrderBook{
     }
 
 pub fn matching_order(&mut self, mut taker: Order)->Result<Vec<ExecutedOrder>>{
-    let timestamp = UtcDateTime::now();
+    let timestamp = Utc::now().timestamp_millis();
     let mut executed_trades= Vec::new();
     let mut remove_price = Vec::new();
     taker.validate()?;
@@ -144,10 +148,10 @@ pub fn matching_order(&mut self, mut taker: Order)->Result<Vec<ExecutedOrder>>{
 
     {
     let book = if match_ask {
-        &mut self.bids
+        &mut self.asks
     }
     else{
-        &mut self.asks
+        &mut self.bids //
     };
 
     let price_keys : Vec<u64> = if match_ask{
@@ -253,7 +257,8 @@ pub fn matching_order(&mut self, mut taker: Order)->Result<Vec<ExecutedOrder>>{
         let idx = level.orders.len(); //here the len of roders will the be next index in that array
         level.push(&order);
         self.order_location.insert(
-            order.price,
+            // order.price,
+            order.order_id,
             OrderLocation{
             side: order.side,
             price: order.price,

@@ -8,7 +8,7 @@ pub enum MarketEvent{
         price: u64,
         side: Side,
         quantity: u64,
-        timestamp: String,
+        timestamp: i64,
     },
     DepthSnapshot{
         asks: Vec<(u64, u64)>,

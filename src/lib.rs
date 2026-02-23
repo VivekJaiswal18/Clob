@@ -10,5 +10,6 @@ pub mod input;
 pub mod output;
 pub mod orderbook;
 pub mod route;
+pub mod kafka_worker;
 
 pub static ORDER_ID: AtomicU64 = AtomicU64::new(1);

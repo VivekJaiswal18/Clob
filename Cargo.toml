@@ -7,10 +7,13 @@ edition = "2024"
 actix = "0.13.5"
 actix-web = "4.12.1"
 actix-web-actors = "4.3.1"
+chrono = {version="0.4.43", features=["clock"]}
 parking_lot = "0.12.5"
+rdkafka = "0.39.0"
 reqwest = {version = "0.13.1", features = ["json"]}
 ringbuf = "0.4.8"
 rmp-serde = "1.3.1"
+scylla = {version = "1.4.1", features = ["chrono-04"]}
 serde = {version = "1.0.228",  features = ["derive"]}
 serde_json = "1.0.148"
 sysinfo = "0.37.2"
