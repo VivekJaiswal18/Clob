@@ -23,13 +23,13 @@ fn is_wincode(req: &HttpRequest)->bool{
     .unwrap_or(false)
 }
 
-// fn is_msgpack(req: &HttpRequest)-> bool{
-//     req.heades()
-//     .get("content-type")
-//     .and_then(|v| v.to_str().ok())
-//     .map(|s| s.contains("msgpack"))
-//     .unwrap_or(false)
-// }
+fn is_msgpack(req: &HttpRequest)-> bool{
+    req.headers()
+    .get("content-type")
+    .and_then(|v| v.to_str().ok())
+    .map(|s| s.contains("msgpack"))
+    .unwrap_or(false)
+}
 
 fn wants_wincode(req: &HttpRequest)->bool{
     req.headers()
@@ -39,13 +39,13 @@ fn wants_wincode(req: &HttpRequest)->bool{
     .unwrap_or(false)
 }
 
-// fn wants_msgpack(&req: &HttpRequest) -> bool{
-//     req.headers()
-//     .get("accept")
-//     .and_then(|v| v.to_str().ok())
-//     .map(|s| s.contains("msgpack"))
-//     .unwrap_or(false)
-// }
+fn wants_msgpack(req: &HttpRequest) -> bool{
+    req.headers()
+    .get("accept")
+    .and_then(|v| v.to_str().ok())
+    .map(|s| s.contains("msgpack"))
+    .unwrap_or(false)
+}
 
 #[post("/order")]
 pub async fn create_order(
@@ -53,7 +53,7 @@ pub async fn create_order(
     body: web::Bytes,
     sender: Data<OrderSender>
 )-> impl Responder{
-
+    // eprintln!("Order on api");
     let input : CreateOrderInput= 
     if is_wincode(&req){
         match wincode::deserialize::<CreateOrderInput>(&body){
@@ -61,12 +61,12 @@ pub async fn create_order(
             Err(e)=> return HttpResponse::BadRequest().body(format!("Invalid wincode format {:?}", e)),
         }
     }
-    // else if is_msgpack(&req){
-    //     match rmp_serde::from_slice(&body){
-    //         Ok(data)=> data,
-    //         Err(e)=> return HttpResponse.BadRequest().body(!format("Invalid msgpack format {}", e)),
-    //     }
-    // }
+    else if is_msgpack(&req){
+        match rmp_serde::from_slice(&body){
+            Ok(data)=> data,
+            Err(e)=> return HttpResponse::BadRequest().body(format!("Invalid msgpack format {}", e)),
+        }
+    }
     else{
         match serde_json::from_slice(&body){
             Ok(data) => data,
@@ -84,6 +84,7 @@ pub async fn create_order(
 
     match sender.send(event){
         Ok(_) =>{
+            // eprintln!("Order send to mpsc");
         let response = CreateOrderResponse{
             order_id: order_id.to_string()
         };
@@ -93,11 +94,25 @@ pub async fn create_order(
                 Err(e)=> return HttpResponse::BadRequest().body(format!("Could not send response: {:?}", e)),
             }
         } 
+        // else if wants_msgpack(&req) {
+        //     response.msgpack()
+        // } 
+        else if wants_msgpack(&req) {  // Note: should check Accept header, not Content-Type
+            match rmp_serde::to_vec(&response) {
+                Ok(bytes) => return HttpResponse::Ok()
+                    .content_type("application/msgpack")
+                    .body(bytes),
+                Err(e) => return HttpResponse::InternalServerError()
+                    .body(format!("Could not serialize msgpack: {:?}", e)),
+            }
+        } 
         else{
             return HttpResponse::Ok().json(&response)
         }
     }
-    Err(e)=> return HttpResponse::InternalServerError().body(format!("Order not sent: {:?}", e)),
+    Err(e)=> {
+        return HttpResponse::InternalServerError().body(format!("Order not sent: {:?}", e))
+    }
     };
 
 }
@@ -164,3 +179,18 @@ pub async fn get_depth(req: HttpRequest, depth: Data<Arc<RwLock<Depth>>>)-> impl
         HttpResponse::Ok().json(&depth_snapshot)
     }
 }
+
+// #[get("/metrics")]
+// pub async fn metrics_endpoint() -> impl Responder {
+//     let encoder = TextEncoder::new();
+//     let metric_families = prometheus::gather();
+//     let mut buffer = Vec::new();
+
+//     if encoder.encode(&metric_families, &mut buffer).is_err() {
+//         return HttpResponse::InternalServerError().finish();
+//     }
+
+//     HttpResponse::Ok()
+//         .content_type(encoder.format_type())
+//         .body(String::from_utf8(buffer).unwrap_or_default())
+// }

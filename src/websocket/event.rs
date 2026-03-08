@@ -9,6 +9,7 @@ pub enum MarketEvent{
         side: Side,
         quantity: u64,
         timestamp: i64,
+        // timestamp: chrono::DateTime<Utc>,
     },
     DepthSnapshot{
         asks: Vec<(u64, u64)>,

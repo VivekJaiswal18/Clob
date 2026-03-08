@@ -3,9 +3,10 @@ use wincode_derive::{SchemaWrite, SchemaRead};
 use serde::{Deserialize, Serialize};
 
 
-#[derive(Deserialize, Serialize, Debug, SchemaWrite, SchemaRead)]
+#[derive(Deserialize, Serialize, Debug, SchemaWrite, Clone, Copy, SchemaRead)]
 pub enum OrderEvent{
     NewOrder {
+        // market: String,
         order_id: u64,
         // user_id: u32,
         price: u64,

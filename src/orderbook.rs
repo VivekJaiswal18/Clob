@@ -6,11 +6,13 @@ use serde::de::Expected;
 use tracing::warn;
 use crate::error::{OrderbookError, Result};
 use crate::input::Side;
+use crate::matching_engine;
 use std::collections::{BTreeMap, HashMap};
 use std::mem::MaybeUninit;
 use crate::output::{Depth};
 
 pub struct Order{
+    // market : String,
     pub order_id: u64,
     // pub user_id: u64, //will use for checking orders by same user on both sides
     pub price: u64,
@@ -31,6 +33,7 @@ impl Order{
     }
 }
 
+#[derive(Debug)]
 pub struct PriceLevel{
     pub orders: Vec<u64>,
     pub quantity: Vec<u64>,
@@ -80,15 +83,18 @@ pub fn reduce_quantity(&mut self, idx: usize, new_maker_quantity: u64)->Result<(
 }
 }
 
+#[derive(Debug)]
 pub struct ExecutedOrder{
     pub maker_id: u64,
     pub taker_id: u64,
     pub price: u64,
     pub quantity: u64,
     pub timestamp: i64
+    // pub timestamp: chrono::DateTime<Utc>
     // pub timestamp: UtcDateTime
 }
 
+#[derive(Debug)]
 pub struct DepthCache{
     pub asks: [[u64; 2]; 20],
     pub bids: [[u64; 2]; 20],
@@ -102,15 +108,19 @@ pub struct TradeMsg{
     maker_id: u64,
     taker_id: u64,
     timestamp: i64,
+    // timestamp: chrono::DateTime<Utc>,
     // timestamp: UtcDateTime,
     quantity: u64,
 }
 
+#[derive(Debug)]
 pub struct OrderLocation{
     pub side: Side,
     pub price: u64,
     pub index: usize
 }
+
+#[derive(Debug)]
 pub struct OrderBook{
     pub asks: BTreeMap<u64, PriceLevel>,
     pub bids: BTreeMap<u64, PriceLevel>,
@@ -141,6 +151,7 @@ impl OrderBook{
 
 pub fn matching_order(&mut self, mut taker: Order)->Result<Vec<ExecutedOrder>>{
     let timestamp = Utc::now().timestamp_millis();
+    // let timestamp: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
     let mut executed_trades= Vec::new();
     let mut remove_price = Vec::new();
     taker.validate()?;
@@ -151,7 +162,7 @@ pub fn matching_order(&mut self, mut taker: Order)->Result<Vec<ExecutedOrder>>{
         &mut self.asks
     }
     else{
-        &mut self.bids //
+        &mut self.bids 
     };
 
     let price_keys : Vec<u64> = if match_ask{
@@ -182,7 +193,11 @@ pub fn matching_order(&mut self, mut taker: Order)->Result<Vec<ExecutedOrder>>{
             taker.quantity -= traded;
             let new_maker_quantity = maker_quantity.saturating_sub(traded);
             level.reduce_quantity(idx, new_maker_quantity)?;
-            
+
+            if self.trade_len >= 50 {
+                warn!("Trade Buffer full");
+                break;
+            };
             self.trade_buf[self.trade_len].write(
                 TradeMsg{
                     price: price,
@@ -205,7 +220,7 @@ pub fn matching_order(&mut self, mut taker: Order)->Result<Vec<ExecutedOrder>>{
 
             if new_maker_quantity == 0{
                 level.remove_order(idx)?;
-                break;
+                // break;
             }
             else{
                 idx +=1;
@@ -229,9 +244,9 @@ pub fn matching_order(&mut self, mut taker: Order)->Result<Vec<ExecutedOrder>>{
     }
 
     if taker.quantity>0{
-        self.insert_resting_order(taker);
+        self.insert_resting_order(taker)?;
     }
-
+    self.depth_cache.stale = true;
     Ok(executed_trades)
     
     }
@@ -266,7 +281,7 @@ pub fn matching_order(&mut self, mut taker: Order)->Result<Vec<ExecutedOrder>>{
             }
         );
 
-
+        self.depth_cache.stale = true;
         Ok(())
 
     }
@@ -302,7 +317,7 @@ pub fn matching_order(&mut self, mut taker: Order)->Result<Vec<ExecutedOrder>>{
 
         let bids = self.depth_cache.bids[..self.depth_cache.bid_count.min(limit)].to_vec();
         let asks = self.depth_cache.asks[..self.depth_cache.ask_count.min(limit)].to_vec();
-
+        // println!("depth in orderbook asks {:?}, bids- {:?}", asks, bids);
         Depth{
             bids,
             asks,

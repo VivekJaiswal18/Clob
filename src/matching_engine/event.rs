@@ -5,7 +5,7 @@ use wincode_derive::{SchemaRead, SchemaWrite};
 use crate::input::Side;
 // use crate::orderbook::Order;
 
-#[derive(SchemaRead, SchemaWrite, Debug)]
+#[derive(SchemaRead, SchemaWrite)]
 pub enum PersistEvent{
     TradeExecuted{
         maker_id: i64,
@@ -17,16 +17,16 @@ pub enum PersistEvent{
         // timestamp: DateTime<Utc>,
     },
     NewOrder{
-        order_id: i64,
-        price: i64,
-        quantity: i64,
+        order_id: u64,
+        price: u64,
+        quantity: u64,
         side: Side,
     },
     DeleteOrder{
         order_id: u64
     },
     Snapshot{
-        // market*: String,
+        market: String,
         snapshot_time: i64,
         kafka_offset: i64,
         kafka_partition: i32,
